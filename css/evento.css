@@ -166,3 +166,18 @@ td {
   border-radius: 10px;
   font-weight: 700;
 }
+
+.footer-creditos{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  padding: 12px 10px;
+  font-size: 14px;
+  color: #aaa;
+  opacity: .75;
+  z-index: 9999;
+  pointer-events: none;
+}
+body{ padding-bottom: 50px; }
