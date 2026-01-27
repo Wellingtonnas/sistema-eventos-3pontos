@@ -1,0 +1,16 @@
+.footer-credito{
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.75;
+  color: #ffffff;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+@media (max-width: 480px){
+  .footer-credito{ font-size: 11px; bottom: 8px; }
+}
