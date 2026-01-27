@@ -1,0 +1,69 @@
+body {
+  background: #0d0d0d;
+  font-family: Arial;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-box {
+  background: #1b1b1b;
+  padding: 25px;
+  width: 320px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #000;
+}
+
+.login-box h2 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #2ecbff;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 8px;
+  margin: 6px 0 14px 0;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #008cff;
+  color: white;
+  font-size: 15px;
+}
+
+.viewer {
+  margin-top: 10px;
+  background: #444;
+}
+
+.ou {
+  text-align: center;
+  margin: 10px 0;
+  color: #999;
+}
+
+.erro {
+  margin-top: 10px;
+  color: #ff4d4d;
+  text-align: center;
+}
+
+.logo-topo {
+  display: block;
+  height: 42px;
+  width: auto;
+  margin: 10px auto 0;
+  opacity: 0.95;
+}
+
+

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Projeto do Evento</title>
+  <link rel="stylesheet" href="css/evento.css">
+</head>
+
+<body>
+
+<button onclick="history.back()" class="btn-voltar">← Voltar</button>
+
+<h1 class="titulo-evento">Projetos do Evento</h1>
+<img src="assets/logo-3pontos.png" alt="3 Pontos Stands" class="logo-topo" />
+
+<!-- RESUMO DO EVENTO (1x apenas) -->
+<div id="eventResumo" class="event-resumo">
+  <div><b>Evento:</b> <span id="evNome">—</span></div>
+  <div><b>Endereço:</b> <span id="evEndereco">—</span></div>
+  <div><b>Período:</b> <span id="evPeriodo">—</span></div>
+</div>
+
+<button id="btnAddProjeto" class="btn-add">+ Adicionar Projeto</button>
+
+<div class="tabela-container">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Projeto</th>
+        <th>Vendedor</th>
+        <th>Projetista</th>
+        <th>Status</th>
+        <th>Operacional</th>
+        <th>Impressão</th>
+        <th>Cortes</th>
+        <th>Elétrica</th>
+        <th>Serralharia</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="listaProjetos"></tbody>
+  </table>
+</div>
+
+<!-- MODAL ADICIONAR PROJETO -->
+<div id="modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>Novo Projeto</h2>
+    <label>Nome do Projeto:</label>
+    <input id="projNome">
+
+    <div class="actions">
+      <button onclick="fecharModal()">Cancelar</button>
+      <button onclick="adicionarProjeto()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE HISTÓRICO -->
+<div id="modalHistorico" class="modal hidden">
+  <div class="modal-content" style="max-width:450px;">
+    <h2 id="tituloHistorico">Histórico</h2>
+    <div id="conteudoHistorico"
+      style="max-height:250px; overflow-y:auto; padding:10px; background:#eee; border:1px solid #ccc;">
+    </div>
+
+    <div class="actions" style="margin-top:15px;">
+      <button onclick="fecharHistorico()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/evento.js"></script>
+</body>
+</html>

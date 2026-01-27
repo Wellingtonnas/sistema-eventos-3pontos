@@ -1,0 +1,130 @@
+/* --- TABELA --- */
+table.tabela {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table.tabela th, table.tabela td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+}
+
+.hora {
+    font-size: 11px;
+    color: #555;
+    margin-top: 4px;
+}
+
+/* CORES */
+.verde { background: #8cff8c; }
+.vermelho { background: #ff8c8c; }
+.amarelo { background: #fff59b; }
+
+/* --- BOTÕES --- */
+button {
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 5px;
+    border: none;
+}
+
+.btnPrincipal {
+    padding: 10px 16px;
+    margin-bottom: 15px;
+    background: #333;
+    color: white;
+}
+
+.btnHist {
+    margin-top: 5px;
+    background: #333;
+    color: white;
+    font-size: 13px;
+}
+
+/* --- MODAL ADICIONAR PROJETO --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 350px;
+}
+
+/* --- MODAL HISTÓRICO --- */
+.modal-hist {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.modal-hist.hidden { display: none; }
+
+.modal-hist-content {
+    width: 450px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    animation: fadeIn .3s ease;
+}
+
+.modal-hist-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.modal-hist-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.linhaHist {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.closeHist {
+    background: none;
+    font-size: 18px;
+}
+
+/* ANIMAÇÃO */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+
+.logo-topo {
+  display: block;
+  height: 42px;
+  width: auto;
+  margin: 10px auto 0;
+  opacity: 0.95;
+}
+

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cronograma 2025</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="css/cronograma.css" />
+  </head>
+
+  <body>
+    <header class="topbar">
+      <img src="assets/logo-3pontos.png" alt="3 Pontos Stands" class="logo-topo" />
+      <div class="brand">Sistema de Acompanhamento de Produção - 3 Pontos</div>
+      <div class="header-right">
+        <div id="userInfo">Usuário: <span id="currentUser">anon</span></div>
+        <button id="btnLogout" class="btn-ghost">Sair</button>
+        <button id="btnClearHistory" class="btn-ghost">Limpar Histórico</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="center">
+        <button id="btnAddEvento" class="btn-blue">+ Adicionar Evento</button>
+      </div>
+
+      <div id="listaMeses" class="meses-list"></div>
+    </main>
+
+    <!-- Modal adicionar/editar evento -->
+    <div id="modalEvento" class="modal hidden" aria-hidden="true">
+      <div class="modal-box" role="dialog" aria-modal="true">
+        <h2 id="modalTitle">Novo Evento</h2>
+
+        <label>Nome:</label>
+        <input id="evtNome" type="text" placeholder="Nome do evento" />
+
+        <label>Endereço / Local:</label>
+        <input
+          id="evtEndereco"
+          type="text"
+          placeholder="Ex: Centro de Convenções - Recife"
+        />
+
+        <label>Mês:</label>
+        <select id="evtMes"></select>
+
+        <label>Período (início / fim):</label>
+        <div class="row">
+          <input id="evtPeriodoInicio" type="date" /> —
+          <input id="evtPeriodoFim" type="date" />
+        </div>
+
+        <label>Montagem (início / fim):</label>
+        <div class="row">
+          <input id="evtMontInicio" type="date" /> —
+          <input id="evtMontFim" type="date" />
+        </div>
+
+        <label>Desmontagem (início / fim):</label>
+        <div class="row">
+          <input id="evtDesmInicio" type="date" /> —
+          <input id="evtDesmFim" type="date" />
+        </div>
+
+        <label>Anexar PDF (opcional):</label>
+        <input id="evtPDF" type="file" accept="application/pdf" />
+
+        <div class="modal-actions">
+          <button id="btnCancelarEvento" class="btn-ghost">Fechar</button>
+          <button id="btnSalvarEvento" class="btn-blue">Salvar</button>
+        </div>
+
+        <div id="alertConflict" class="alert hidden"></div>
+      </div>
+    </div>
+
+    <!-- Conflito modal central (mais visível) -->
+    <div id="modalConflict" class="modal hidden" aria-hidden="true">
+      <div class="modal-box conflict">
+        <h2>⚠ Atenção — Conflito de Período</h2>
+        <div id="conflictMessage" style="margin-top: 8px; color: #111"></div>
+        <div style="margin-top: 12px; text-align: right">
+          <button id="btnCloseConflict" class="btn-blue">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Histórico do evento (modal) -->
+    <div id="modalHistoricoEvento" class="modal hidden">
+      <div class="modal-box">
+        <h3>Histórico do Evento</h3>
+        <div id="conteudoHistoricoEvento" class="history-list"></div>
+        <div class="modal-actions">
+          <button id="btnCloseHistory" class="btn-ghost">Fechar</button>
+        </div>
+      </div>
+    </div>
+    <!-- coloque isto antes dos seus scripts principais (cronograma.js / evento.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/cronograma.js"></script>
+  </body>
+</html>

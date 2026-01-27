@@ -1,0 +1,168 @@
+body {
+  background: #111;
+  color: white;
+  font-family: Arial;
+  margin: 0;
+}
+
+.btn-voltar {
+  margin: 20px;
+  background: #444;
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.titulo-evento {
+  text-align: center;
+  margin-top: 5px;
+  color: #2ecbff;
+}
+
+.btn-add {
+  margin-left: 20px;
+  background: #008cff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: white;
+}
+
+.tabela-container {
+  margin: 20px;
+  overflow-x: auto;
+}
+
+table {
+  width: 1600px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #333;
+  padding: 6px;
+  text-align: center;
+}
+
+/* Cores corrigidas */
+.verde {
+  background: #008f2e !important;
+  color: white !important;
+}
+
+.vermelho {
+  background: #b50000 !important;
+  color: white !important;
+}
+
+.amarelo {
+  background: #d6c400 !important;
+  color: black !important;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: #0009;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  color: black;
+  padding: 20px;
+  width: 320px;
+  border-radius: 10px;
+}
+
+.modal-content input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+}
+.event-meta {
+  max-width: 980px;
+  margin: 10px auto 20px auto;
+  background: #1a1a1a;
+  border: 1px solid #2b2b2b;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.event-meta-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.event-meta-line {
+  color: #ddd;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.event-resumo {
+  max-width: 1200px;
+  margin: 10px auto 20px auto;
+  padding: 16px;
+  border: 1px solid #222;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  line-height: 1.6;
+}
+.event-resumo b {
+  color: #2ecbff;
+}
+
+.logo-topo {
+  display: block;
+  height: 42px;
+  width: auto;
+  margin: 10px auto 0;
+  opacity: 0.95;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-voltar {
+  background: #2f2f2f;
+  color: #fff;
+  border: 1px solid #4a4a4a;
+  font-weight: 800;
+  font-size: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.btn-voltar:hover {
+  background: #3a3a3a;
+  border-color: #6a6a6a;
+}
+
+.btn-voltar {
+  font-size: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+}

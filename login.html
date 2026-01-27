@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login — Sistema Cronograma</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <style>
+      body {
+        background: #0d0d0d;
+        font-family: Arial;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        color: white;
+      }
+      .card {
+        background: #1c1c1c;
+        padding: 30px;
+        width: 320px;
+        border-radius: 10px;
+        box-shadow: 0 0 25px #000;
+        text-align: center;
+      }
+      h2 {
+        margin-bottom: 25px;
+        color: #00d2ff;
+      }
+      select,
+      input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 12px;
+        border-radius: 6px;
+        border: none;
+        background: #2c2c2c;
+        color: white;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 18px;
+        border: none;
+        border-radius: 6px;
+        background: #008cff;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .visualizar-btn {
+        margin-top: 12px;
+        background: #444;
+      }
+      .erro {
+        margin-top: 15px;
+        color: #ff4444;
+        font-size: 14px;
+        display: none;
+      }
+      .ok {
+        margin-top: 15px;
+        color: #66ff99;
+        font-size: 14px;
+        display: none;
+      }
+
+      .logo-topo {
+        display: block;
+        height: 42px;
+        width: auto;
+        margin: 10px auto 0;
+        opacity: 0.95;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img
+        src="assets/logo-3pontos.png"
+        alt="3 Pontos Stands"
+        class="logo-topo"
+      />
+      <h2>Gestão de Eventos e Projetos</h2>
+      <select id="tipoAcesso">
+        <option value="admin">Admin</option>
+        <option value="producao">Produção</option>
+      </select>
+
+      <input
+        id="loginUser"
+        type="email"
+        placeholder="Email (ex: alexandre@3pontos.com)"
+      />
+      <input id="loginPass" type="password" placeholder="Senha" />
+
+      <button id="btnEntrar">Entrar</button>
+
+      <!-- Visualizador com login (mais seguro) -->
+      <button class="visualizar-btn" id="btnVisual">
+        Entrar como Visualizador
+      </button>
+
+      <div class="erro" id="msgErro"></div>
+      <div class="ok" id="msgOk"></div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabaseClient.js"></script>
+
+    <script>
+      // ========= Helpers UI =========
+      const msgErro = document.getElementById("msgErro");
+      const msgOk = document.getElementById("msgOk");
+
+      function showError(text) {
+        msgOk.style.display = "none";
+        msgErro.innerText = text;
+        msgErro.style.display = "block";
+      }
+
+      function showOk(text) {
+        msgErro.style.display = "none";
+        msgOk.innerText = text;
+        msgOk.style.display = "block";
+      }
+
+      // ========= Login principal =========
+      async function fazerLogin(email, password, tipoEscolhido) {
+        msgErro.style.display = "none";
+        msgOk.style.display = "none";
+
+        try {
+          // 1) Auth
+          const { data, error } =
+            await window.supabaseClient.auth.signInWithPassword({
+              email,
+              password,
+            });
+          if (error) throw new Error("Auth: " + error.message);
+
+          const userId = data.user.id;
+
+          // 2) Buscar perfil
+          const { data: perfil, error: perfilErr } = await window.supabaseClient
+            .from("profiles")
+            .select("nome, role")
+            .eq("id", userId)
+            .single();
+
+          if (perfilErr) throw new Error("Profiles: " + perfilErr.message);
+          if (!perfil) throw new Error("Profiles: perfil não encontrado.");
+
+          // 3) Validar "tipo de acesso" vs role
+          // - superadmin entra como admin
+          const roleNormalizada =
+            perfil.role === "superadmin" ? "admin" : perfil.role;
+
+          // Se o usuário escolheu "Admin" mas o role dele é "producao" ou "visual", bloqueia
+          if (tipoEscolhido && roleNormalizada !== tipoEscolhido) {
+            // desfaz sessão pra não deixar logado errado
+            await window.supabaseClient.auth.signOut();
+            throw new Error(
+              `Permissão: seu perfil é "${roleNormalizada}" e você selecionou "${tipoEscolhido}".`,
+            );
+          }
+
+          // 4) Cache pro seu frontend (compatível)
+          localStorage.setItem("nivelAcesso", roleNormalizada); // admin | producao | visual
+          localStorage.setItem("usuarioLogado", perfil.nome);
+
+          showOk("Login OK. Redirecionando...");
+
+          // 5) Ir pra tela do cronograma
+          window.location.href = "cronograma.html";
+        } catch (e) {
+          console.error("ERRO LOGIN:", e);
+          showError(e.message || "Login inválido ou perfil sem permissão.");
+        }
+      }
+
+      // ========= Eventos =========
+      document
+        .getElementById("btnEntrar")
+        .addEventListener("click", async () => {
+          const tipo = document.getElementById("tipoAcesso").value; // admin | producao
+          const email = document.getElementById("loginUser").value.trim();
+          const pass = document.getElementById("loginPass").value;
+
+          if (!email || !pass) return showError("Preencha email e senha.");
+          await fazerLogin(email, pass, tipo);
+        });
+
+      // Enter no teclado
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("btnEntrar").click();
+      });
+
+      // Visualizador: login com conta criada (recomendado)
+      document
+        .getElementById("btnVisual")
+        .addEventListener("click", async () => {
+          const email = "visual@3pontos.com";
+          const pass = prompt("Senha do Visualizador:");
+          if (!pass) return;
+
+          // aqui não valida tipoEscolhido, força visual
+          await fazerLogin(email, pass, "visual");
+        });
+    </script>
+  </body>
+</html>
