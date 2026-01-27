@@ -82,23 +82,17 @@
   opacity: 0.7;
 }
 
-.footer-creditos{
+.dev-footer{
   position: fixed;
   left: 0;
-  right: 0;
-  bottom: 0;
+  bottom: 12px;
+  width: 100%;
   text-align: center;
-  padding: 12px 10px;
   font-size: 14px;
-  color: #aaa;
-  opacity: .75;
+  color: rgba(255,255,255,0.75);
   z-index: 9999;
-  pointer-events: none;
+  pointer-events: none; /* não atrapalha clicar em nada */
 }
-
-/* pra não ficar em cima do conteúdo */
-body{ padding-bottom: 50px; }
-
       }
     </style>
   </head>
@@ -237,6 +231,6 @@ body{ padding-bottom: 50px; }
           await fazerLogin(email, pass, "visual");
         });
     </script>
-    <script src="js/creditos.js"></script>
+    <footer class="dev-footer">Desenvolvedor Wellington Carneiro</footer>
   </body>
 </html>
