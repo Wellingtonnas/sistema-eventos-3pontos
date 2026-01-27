@@ -1,7 +1,8 @@
 // js/creditos.js
-(function () {
-  const footer = document.createElement("div");
-  footer.className = "footer-credito";
-  footer.textContent = "Desenvolvido por Wellington Carneiro";
+document.addEventListener("DOMContentLoaded", () => {
+  const footer = document.createElement("footer");
+  footer.className = "footer-creditos";
+  footer.innerText = "Desenvolvido por Wellington Carneiro";
+
   document.body.appendChild(footer);
-})();
+});
