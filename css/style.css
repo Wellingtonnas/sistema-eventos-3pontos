@@ -162,5 +162,8 @@ footer.footer-creditos {
   z-index: 9999;
   pointer-events: none;
 }
+
+/* pra não ficar em cima do conteúdo */
 body{ padding-bottom: 50px; }
+
 
