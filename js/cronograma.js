@@ -34,21 +34,55 @@ const MASTER_CLEAR_PASSWORD = "megasena777";
 /** realtime do cronograma */
 let realtimeChannel = null;
 
-/* ================== EVENT_HISTORY (colunas reais) ==================
-   Pelo seu erro, a tabela usa PT-BR:
-   - acao (NOT NULL)
-   - usuario (provável)
-   - created_at
-*/
+/* ================== EVENT_HISTORY (colunas reais) ================== */
 const EVENT_HISTORY_TABLE = "event_history";
 const EH_COL_EVENT_ID = "event_id";
-const EH_COL_ACAO = "acao"; // <-- principal
-const EH_COL_USUARIO = "usuario"; // <-- principal
+const EH_COL_ACAO = "acao";
+const EH_COL_USUARIO = "usuario";
 const EH_COL_CREATED_AT = "created_at";
 
 // fallbacks (caso exista no seu banco)
 const EH_COL_ACTION_FALLBACK = "action";
 const EH_COL_CREATED_BY_FALLBACK = "created_by";
+
+/* ================== CONTAGEM DE PROJETOS (placar) ================== */
+function normalizeStatus(s) {
+  return (s || "").toString().trim().toUpperCase();
+}
+
+async function getProjectCountsByEvent(eventIds) {
+  const map = {};
+  (eventIds || []).forEach((id) => {
+    map[id] = { aprovados: 0, emAprovacao: 0, total: 0 };
+  });
+
+  if (!eventIds?.length) return map;
+
+  const { data, error } = await window.supabaseClient
+    .from("projects")
+    .select("event_id, status")
+    .in("event_id", eventIds);
+
+  if (error) {
+    console.warn("Falha ao buscar placar de projetos:", error.message);
+    return map; // volta zerado (não quebra a tela)
+  }
+
+  (data || []).forEach((p) => {
+    const eid = p.event_id;
+    if (!eid) return;
+
+    if (!map[eid]) map[eid] = { aprovados: 0, emAprovacao: 0, total: 0 };
+
+    const st = normalizeStatus(p.status);
+    map[eid].total += 1;
+
+    if (st === "APROVADO") map[eid].aprovados += 1;
+    if (st === "EM APROVAÇÃO") map[eid].emAprovacao += 1;
+  });
+
+  return map;
+}
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
@@ -60,7 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   aplicarPermissoes();
 
-  carregarSelectMeses(); // importante
+  carregarSelectMeses();
   renderMeses();
   await renderCards();
 
@@ -186,10 +220,16 @@ function setupRealtimeCronograma() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "event_history" },
+        // ✅ importante: quando mudar projetos, atualiza o placar do cronograma
+        { event: "*", schema: "public", table: "projects" },
         async () => {
-          // se quiser, dá pra atualizar o modal de histórico aberto (opcional)
+          await renderCards();
         },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_history" },
+        async () => {},
       )
       .subscribe();
   } catch (e) {
@@ -212,6 +252,11 @@ async function renderCards() {
     return;
   }
 
+  const eventIds = (eventos || []).map((e) => e.id).filter(Boolean);
+
+  // ✅ pega placar de projetos por evento (APROVADO / EM APROVAÇÃO)
+  const placarMap = await getProjectCountsByEvent(eventIds);
+
   (eventos || []).forEach((evt) => {
     const col = document.getElementById(`mes-${evt.mes}`);
     if (!col) return;
@@ -221,8 +266,10 @@ async function renderCards() {
 
     // estilos por status
     if (evt.cancelado) card.classList.add("cancelado");
-    if (evt.oficial) card.classList.add("organizadora");
-    if (evt.nao_oficial) card.classList.add("not-organizadora");
+
+    // ✅ oficial / não-oficial (sem misturar com o vermelho)
+    if (evt.oficial) card.classList.add("oficial");
+    if (evt.nao_oficial) card.classList.add("nao-oficial");
 
     const topIcons = `
       <div class="card-top-icons">
@@ -246,12 +293,27 @@ async function renderCards() {
         ? `<div style="margin-top:6px;font-weight:700;color:#111;background:#ffd54f;padding:6px;border-radius:6px;display:inline-block;">NÃO-OFICIAL</div>`
         : "";
 
+    const pl = placarMap?.[evt.id] || { aprovados: 0, emAprovacao: 0, total: 0 };
+    const placarHtml = `
+      <div class="placar-projetos">
+        <span class="badge aprovado">APROVADOS: <b>${pl.aprovados}</b></span>
+        <span class="badge emaprov">EM APROVAÇÃO: <b>${pl.emAprovacao}</b></span>
+      </div>
+    `;
+
     const footerAdmin = `
       <div class="card-footer">
         ${isAdmin() ? `<button onclick="editarEvento(${evt.id})">✏️ Editar</button>` : ""}
         ${isAdmin() ? `<button onclick="toggleCancel(${evt.id})">${evt.cancelado ? "↺ Desfazer" : "❌ Cancelar"}</button>` : ""}
         <button onclick="goToProjetos(${evt.id})">➡ Projetos</button>
-        ${isAdmin() ? `<button onclick="toggleOficial(${evt.id})">${evt.oficial ? "✅ OFICIAL" : "⚠ NÃO-OFICIAL"}</button>` : ""}
+
+        ${
+          isAdmin()
+            ? `<button class="btn-status ${evt.oficial ? "ofi" : "nao"}" onclick="toggleOficial(${evt.id})">
+                ${evt.oficial ? "✅ OFICIAL" : "⚠ NÃO-OFICIAL"}
+              </button>`
+            : ""
+        }
       </div>
     `;
 
@@ -260,6 +322,7 @@ async function renderCards() {
       <strong>${evt.nome}</strong>
       ${cancelLabel}
       ${oficialLabel}
+      ${placarHtml}
       <div class="meta">
         <div><b>Local:</b> ${safeText(evt.endereco)}</div>
         <div><b>Período:</b> ${safeText(ymd(evt.periodo_inicio))} a ${safeText(ymd(evt.periodo_fim))}</div>
@@ -427,7 +490,7 @@ async function saveEventFromModal() {
     return alert("Selecione um mês válido (1 a 12).");
   }
 
-  // alerta de conflito (não bloqueia — pede confirmação)
+  // alerta de conflito (não bloqueia)
   const conflitos = await checarConflitoDeDatas(payload, editingId);
   if (conflitos.length) {
     mostrarModalConflito(conflitos, payload);
@@ -486,10 +549,9 @@ async function logHistory(eventId, acaoTexto) {
   const { data: sess } = await window.supabaseClient.auth.getSession();
   const userId = sess?.session?.user?.id || null;
 
-  // ✅ Primeiro tenta no formato PT-BR: acao / usuario
   const payloadPT = {
     [EH_COL_EVENT_ID]: eventId,
-    [EH_COL_ACAO]: acaoTexto, // <-- aqui resolve o NOT NULL em "acao"
+    [EH_COL_ACAO]: acaoTexto,
     [EH_COL_USUARIO]: userId,
     [EH_COL_CREATED_AT]: new Date().toISOString(),
   };
@@ -500,7 +562,6 @@ async function logHistory(eventId, acaoTexto) {
 
   if (!error) return;
 
-  // Fallback 1: action / created_by
   const payloadEN = {
     event_id: eventId,
     action: acaoTexto,
@@ -513,7 +574,6 @@ async function logHistory(eventId, acaoTexto) {
     .insert(payloadEN);
   if (!res2.error) return;
 
-  // Se falhar, mostra o erro real (não assume RLS)
   console.warn("Falha ao registrar histórico:", res2.error.message);
   alert(
     "Não consegui gravar no histórico (event_history).\n\n" +
@@ -532,7 +592,6 @@ async function abrirHistoricoEvento(eventId) {
 
   container.innerHTML = "Carregando...";
 
-  // 1) pega histórico do evento
   const { data, error } = await window.supabaseClient
     .from("event_history")
     .select("*")
@@ -551,12 +610,8 @@ async function abrirHistoricoEvento(eventId) {
     return;
   }
 
-  // 2) coleta todos os UUIDs únicos (coluna usuario)
-  const userIds = Array.from(
-    new Set(data.map((h) => h.usuario).filter(Boolean)),
-  );
+  const userIds = Array.from(new Set(data.map((h) => h.usuario).filter(Boolean)));
 
-  // 3) busca nomes no profiles
   let mapNomes = {};
   if (userIds.length) {
     const { data: perfis, error: pErr } = await window.supabaseClient
@@ -571,7 +626,6 @@ async function abrirHistoricoEvento(eventId) {
     }
   }
 
-  // 4) renderiza
   container.innerHTML = "";
   data.forEach((h) => {
     const acao = h.acao ?? h.action ?? "—";
@@ -632,10 +686,7 @@ async function resetGeralComSenha() {
         .from("project_files")
         .delete()
         .in("project_id", projectIds);
-      await window.supabaseClient
-        .from("projects")
-        .delete()
-        .in("id", projectIds);
+      await window.supabaseClient.from("projects").delete().in("id", projectIds);
     }
 
     if (eventIds.length) {
@@ -783,14 +834,12 @@ async function uploadPDFForEvent(eventId, fileOptional = null, opts = {}) {
   const { data: sessionData } = await window.supabaseClient.auth.getSession();
   const userId = sessionData?.session?.user?.id || null;
 
-  const { error: dbErr } = await window.supabaseClient
-    .from("event_files")
-    .insert({
-      event_id: eventId,
-      file_path: storagePath,
-      uploaded_by: userId,
-      uploaded_at: new Date().toISOString(),
-    });
+  const { error: dbErr } = await window.supabaseClient.from("event_files").insert({
+    event_id: eventId,
+    file_path: storagePath,
+    uploaded_by: userId,
+    uploaded_at: new Date().toISOString(),
+  });
 
   if (dbErr) {
     console.error(dbErr);

@@ -397,3 +397,57 @@ body {
   pointer-events: none;
 }
 body{ padding-bottom: 50px; }
+
+/* ====== PLACAR DE PROJETOS (APROVADOS / EM APROVAÇÃO) ====== */
+.placar-projetos{
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 6px;
+  flex-wrap: wrap;
+}
+
+.placar-projetos .badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.25);
+  color: #fff;
+}
+
+.placar-projetos .badge.aprovado{
+  border-color: rgba(0,255,160,0.25);
+  background: rgba(0,255,160,0.08);
+}
+
+.placar-projetos .badge.emaprov{
+  border-color: rgba(255,205,0,0.30);
+  background: rgba(255,205,0,0.10);
+}
+
+/* ====== EVENTO NÃO-OFICIAL (card inteiro amarelo/laranja) ====== */
+.card-evento.nao-oficial{
+  border-left-color: #ffd54f !important;
+  background: #3a2f10; /* amarelo/laranja escuro, mantém texto branco */
+}
+
+/* ====== EVENTO OFICIAL (opcional) ====== */
+.card-evento.oficial{
+  border-left-color: var(--accent) !important;
+}
+
+/* ====== Botão FECHAR do histórico ficar visível ====== */
+#btnCloseHistory{
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid #444 !important;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#btnCloseHistory:hover{
+  filter: brightness(1.08);
+}
