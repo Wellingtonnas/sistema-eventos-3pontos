@@ -19,7 +19,6 @@ async function requireAuth() {
     return null;
   }
 
-  // compatível com seu frontend
   localStorage.setItem("usuarioLogado", perfil.nome);
   localStorage.setItem(
     "nivelAcesso",
@@ -53,12 +52,18 @@ function getEventIdFromURL() {
   return Number(params.get("id"));
 }
 
-/* ================== STORAGE / TABLES ================== */
-const BUCKET_PDFS = "pdfs"; // seu bucket
-const PROJECT_FILES_TABLE = "project_files"; // tabela que referencia os PDFs do projeto
-const STAGE_HISTORY_TABLE = "project_stage_history"; // tabela do histórico
+/** ✅ força dd/mm/aaaa (e hora) */
+function fmtBRDateTime(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR");
+}
 
-/* ================== LISTAS (igual antes) ================== */
+/* ================== STORAGE / TABLES ================== */
+const BUCKET_PDFS = "pdfs";
+const PROJECT_FILES_TABLE = "project_files";
+const STAGE_HISTORY_TABLE = "project_stage_history";
+
+/* ================== LISTAS ================== */
 const vendedores = ["ALEXANDRE", "LUCIANA", "VALERIA", "HUGO"];
 const projetistas = ["BEATRIZ", "MAYARA", "MAURO", "JAILDO"];
 
@@ -106,22 +111,17 @@ const serralhariaList = [
   { nome: "CONCLUÍDO", cor: "verde" },
 ];
 
-/* ================== PERMISSÕES (igual antes) ================== */
+/* ================== PERMISSÕES ================== */
 function podeEditarCampo(campo) {
   const nivel = getNivel();
 
   if (nivel === "admin") {
-    return ["nome_projeto", "vendedor", "projetista", "status"].includes(campo);
+    // ✅ vendedor2 incluído
+    return ["nome_projeto", "vendedor", "vendedor2", "projetista", "status"].includes(campo);
   }
 
   if (nivel === "producao") {
-    return [
-      "operacional",
-      "impressao",
-      "cortes",
-      "eletrica",
-      "serralharia",
-    ].includes(campo);
+    return ["operacional", "impressao", "cortes", "eletrica", "serralharia"].includes(campo);
   }
 
   return false;
@@ -129,8 +129,8 @@ function podeEditarCampo(campo) {
 
 /* ================== STATE ================== */
 let currentProjects = [];
-let lastStageTimeByProject = {}; // { [projectId]: { [stage]: "dd/mm/aaaa hh:mm" } }
-let hasPdfByProject = {}; // { [projectId]: true/false }
+let lastStageTimeByProject = {};
+let hasPdfByProject = {};
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
@@ -144,7 +144,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // VISUAL/PRODUÇÃO podem entrar, mas não podem adicionar projeto
   if (!isAdmin()) {
     document.getElementById("btnAddProjeto")?.remove();
   }
@@ -174,8 +173,11 @@ async function carregarResumoEvento(eventId) {
 
   document.getElementById("evNome").innerText = safeText(data?.nome);
   document.getElementById("evEndereco").innerText = safeText(data?.endereco);
-  document.getElementById("evPeriodo").innerText =
-    `${safeText(ymd(data?.periodo_inicio))} a ${safeText(ymd(data?.periodo_fim))}`;
+
+  // (aqui é só data, não hora)
+  const pi = data?.periodo_inicio ? new Date(data.periodo_inicio).toLocaleDateString("pt-BR") : "—";
+  const pf = data?.periodo_fim ? new Date(data.periodo_fim).toLocaleDateString("pt-BR") : "—";
+  document.getElementById("evPeriodo").innerText = `${pi} a ${pf}`;
 }
 
 /* ================== MODAL ADD PROJECT ================== */
@@ -196,6 +198,7 @@ async function adicionarProjeto() {
     event_id: eventId,
     nome_projeto: nome,
     vendedor: null,
+    vendedor2: null, // ✅ novo campo
     projetista: null,
     status: null,
     operacional: null,
@@ -205,9 +208,7 @@ async function adicionarProjeto() {
     serralharia: null,
   };
 
-  const { error } = await window.supabaseClient
-    .from("projects")
-    .insert(payload);
+  const { error } = await window.supabaseClient.from("projects").insert(payload);
 
   if (error) {
     console.error(error);
@@ -225,7 +226,6 @@ async function renderProjetos(eventId) {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  // 1) carrega projetos
   const { data, error } = await window.supabaseClient
     .from("projects")
     .select("*")
@@ -242,20 +242,17 @@ async function renderProjetos(eventId) {
 
   if (!currentProjects.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="11" style="color:#aaa;padding:14px;">Nenhum projeto cadastrado.</td>`;
+    // ✅ se você adicionou Vendedor 2, ajuste o colspan no HTML também
+    tr.innerHTML = `<td colspan="12" style="color:#aaa;padding:14px;">Nenhum projeto cadastrado.</td>`;
     tbody.appendChild(tr);
     return;
   }
 
   const projectIds = currentProjects.map((p) => p.id);
 
-  // 2) carrega última data/hora por stage (para mostrar abaixo do select)
   await carregarUltimasHoras(projectIds);
-
-  // 3) carrega se tem pdf (para mostrar 📄)
   await carregarStatusPdf(projectIds);
 
-  // 4) monta tabela
   currentProjects.forEach((proj) => {
     const tr = document.createElement("tr");
 
@@ -277,6 +274,7 @@ async function renderProjetos(eventId) {
       <td>${renderInputNomeProjeto(proj)}</td>
 
       <td>${renderSelectSimple(vendedores, proj, "vendedor")}</td>
+      <td>${renderSelectVendedor2(vendedores, proj)}</td>
       <td>${renderSelectSimple(projetistas, proj, "projetista")}</td>
 
       ${renderColunaStage(proj, "status", statusList)}
@@ -344,6 +342,29 @@ function renderSelectSimple(lista, proj, campo) {
   `;
 }
 
+/** ✅ Vendedor2 sem repetir o vendedor1 */
+function renderSelectVendedor2(lista, proj) {
+  const campo = "vendedor2";
+  const disabled = !podeEditarCampo(campo) ? "disabled" : "";
+
+  const vendedor1 = proj.vendedor || "";
+  const opcoes = lista.filter((v) => v !== vendedor1);
+
+  return `
+    <select ${disabled}
+      style="width: 95%; padding:6px; border-radius:6px; border:1px solid #333; background:#111; color:#fff;"
+      onchange="atualizarCampo(${proj.id}, '${campo}', this.value, false)">
+      <option value="">--</option>
+      ${opcoes
+        .map((v) => {
+          const selected = proj[campo] === v ? "selected" : "";
+          return `<option value="${escapeHtml(v)}" ${selected}>${escapeHtml(v)}</option>`;
+        })
+        .join("")}
+    </select>
+  `;
+}
+
 function renderColunaStage(proj, campo, lista) {
   const disabled = !podeEditarCampo(campo) ? "disabled" : "";
   const cor = corClassStage(proj[campo]);
@@ -383,7 +404,6 @@ async function carregarUltimasHoras(projectIds) {
   lastStageTimeByProject = {};
   if (!projectIds?.length) return;
 
-  // puxa histórico recente dos projetos (um pouco maior pra garantir)
   const { data, error } = await window.supabaseClient
     .from(STAGE_HISTORY_TABLE)
     .select("project_id, stage, created_at")
@@ -396,15 +416,14 @@ async function carregarUltimasHoras(projectIds) {
     return;
   }
 
-  // pega a primeira ocorrência (mais recente) por (project_id + stage)
   for (const h of data || []) {
     const pid = h.project_id;
     const stage = h.stage;
-    const dt = h.created_at ? new Date(h.created_at).toLocaleString() : "";
+    const dt = fmtBRDateTime(h.created_at);
 
-    if (!pid || !stage || !dt) continue;
+    if (!pid || !stage || dt === "—") continue;
     if (!lastStageTimeByProject[pid]) lastStageTimeByProject[pid] = {};
-    if (lastStageTimeByProject[pid][stage]) continue; // já tem o mais recente
+    if (lastStageTimeByProject[pid][stage]) continue;
     lastStageTimeByProject[pid][stage] = dt;
   }
 }
@@ -435,7 +454,6 @@ async function atualizarCampo(projectId, campo, valor, isStage) {
 }
 
 async function registrarHistoricoStage(projectId, stage, valor) {
-  // sua tabela real: project_id, stage, valor, usuario, created_at
   const payload = {
     project_id: projectId,
     stage: stage,
@@ -490,7 +508,7 @@ async function abrirHistoricoStage(projectId, stage) {
 
   corpo.innerHTML = data
     .map((h) => {
-      const dt = h.created_at ? new Date(h.created_at).toLocaleString() : "—";
+      const dt = fmtBRDateTime(h.created_at);
       const val = h.valor ?? "—";
       const user = h.usuario ?? "—";
       return `<div style="padding:8px;border-bottom:1px solid #ddd;">
@@ -507,12 +525,11 @@ function fecharHistorico() {
   document.getElementById("modalHistorico")?.classList.add("hidden");
 }
 
-/* ================== PDF (ADMIN upload | todos view se existir) ================== */
+/* ================== PDF ================== */
 async function carregarStatusPdf(projectIds) {
   hasPdfByProject = {};
   if (!projectIds?.length) return;
 
-  // puxa apenas 1 registro por project_id (aqui pegamos lista e marcamos true)
   const { data, error } = await window.supabaseClient
     .from(PROJECT_FILES_TABLE)
     .select("project_id")
@@ -546,7 +563,6 @@ async function uploadPDFProjeto(projectId) {
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const storagePath = `projects/${projectId}/${Date.now()}_${safeName}`;
 
-    // 1) upload
     const { error: upErr } = await window.supabaseClient.storage
       .from(BUCKET_PDFS)
       .upload(storagePath, file, {
@@ -561,7 +577,6 @@ async function uploadPDFProjeto(projectId) {
       return;
     }
 
-    // 2) grava referência no banco
     const { data: sess } = await window.supabaseClient.auth.getSession();
     const userId = sess?.session?.user?.id || null;
 
@@ -588,7 +603,6 @@ async function uploadPDFProjeto(projectId) {
 }
 
 async function visualizarPDFProjeto(projectId) {
-  // pega o último pdf
   const { data, error } = await window.supabaseClient
     .from(PROJECT_FILES_TABLE)
     .select("file_path, uploaded_at")
