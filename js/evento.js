@@ -58,6 +58,15 @@ function fmtBRDateTime(iso) {
   return new Date(iso).toLocaleString("pt-BR");
 }
 
+/** ✅ YYYY-MM-DD -> dd/mm/aaaa (sem Date(), evita -1 dia por fuso) */
+function fmtBRDate(isoOrYmd) {
+  const s = ymd(isoOrYmd);
+  if (!s) return null;
+  const [y, m, d] = s.split("-");
+  if (!y || !m || !d) return s;
+  return `${d}/${m}/${y}`;
+}
+
 /* ================== STORAGE / TABLES ================== */
 const BUCKET_PDFS = "pdfs";
 const PROJECT_FILES_TABLE = "project_files";
@@ -151,6 +160,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   await carregarResumoEvento(eventId);
   await renderProjetos(eventId);
 
+  // ✅ filtros (se existirem no HTML) - atualiza na hora
+  ["filtroTexto", "filtroStatus", "filtroVendedor", "filtroVendedor2"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => renderProjetos(getEventIdFromURL()));
+    el.addEventListener("change", () => renderProjetos(getEventIdFromURL()));
+  });
+
   document.getElementById("btnAddProjeto")?.addEventListener("click", () => {
     if (!isAdmin()) return alert("Somente ADMIN pode adicionar projetos.");
     document.getElementById("modal")?.classList.remove("hidden");
@@ -174,9 +191,9 @@ async function carregarResumoEvento(eventId) {
   document.getElementById("evNome").innerText = safeText(data?.nome);
   document.getElementById("evEndereco").innerText = safeText(data?.endereco);
 
-  // (aqui é só data, não hora)
-  const pi = data?.periodo_inicio ? new Date(data.periodo_inicio).toLocaleDateString("pt-BR") : "—";
-  const pf = data?.periodo_fim ? new Date(data.periodo_fim).toLocaleDateString("pt-BR") : "—";
+  // ✅ aqui é só data, SEM Date() (evita -1 dia por fuso)
+  const pi = safeText(fmtBRDate(data?.periodo_inicio));
+  const pf = safeText(fmtBRDate(data?.periodo_fim));
   document.getElementById("evPeriodo").innerText = `${pi} a ${pf}`;
 }
 
@@ -240,20 +257,56 @@ async function renderProjetos(eventId) {
 
   currentProjects = data || [];
 
-  if (!currentProjects.length) {
+  // ✅ aplica filtros (se existirem no HTML) - para todos
+  const fTxt = (document.getElementById("filtroTexto")?.value || "")
+    .trim()
+    .toUpperCase();
+  const fStatus = (document.getElementById("filtroStatus")?.value || "")
+    .trim()
+    .toUpperCase();
+  const fVend1 = (document.getElementById("filtroVendedor")?.value || "")
+    .trim()
+    .toUpperCase();
+  const fVend2 = (document.getElementById("filtroVendedor2")?.value || "")
+    .trim()
+    .toUpperCase();
+
+  let lista = currentProjects;
+
+  if (fTxt) {
+    lista = lista.filter((p) =>
+      (p.nome_projeto || "").toString().trim().toUpperCase().includes(fTxt),
+    );
+  }
+  if (fStatus) {
+    lista = lista.filter(
+      (p) => (p.status || "").toString().trim().toUpperCase() === fStatus,
+    );
+  }
+  if (fVend1) {
+    lista = lista.filter(
+      (p) => (p.vendedor || "").toString().trim().toUpperCase() === fVend1,
+    );
+  }
+  if (fVend2) {
+    lista = lista.filter(
+      (p) => (p.vendedor2 || "").toString().trim().toUpperCase() === fVend2,
+    );
+  }
+
+  if (!lista.length) {
     const tr = document.createElement("tr");
-    // ✅ se você adicionou Vendedor 2, ajuste o colspan no HTML também
     tr.innerHTML = `<td colspan="12" style="color:#aaa;padding:14px;">Nenhum projeto cadastrado.</td>`;
     tbody.appendChild(tr);
     return;
   }
 
-  const projectIds = currentProjects.map((p) => p.id);
+  const projectIds = lista.map((p) => p.id);
 
   await carregarUltimasHoras(projectIds);
   await carregarStatusPdf(projectIds);
 
-  currentProjects.forEach((proj) => {
+  lista.forEach((proj) => {
     const tr = document.createElement("tr");
 
     tr.innerHTML = `

@@ -18,9 +18,28 @@ function getUsuario() {
 function isAdmin() {
   return getNivel() === "admin";
 }
+function isWellington() {
+  return (getUsuario() || "").toString().trim().toLowerCase() === "wellington";
+}
 function ymd(v) {
   return v ? String(v).slice(0, 10) : null;
 }
+
+/**
+ * ✅ Formata data para BR sem timezone:
+ * "2026-03-19" -> "19/03/2026"
+ * aceita ISO completo: "2026-03-19T..." (pega os 10 primeiros)
+ */
+function formatDateBR(v) {
+  const d = ymd(v);
+  if (!d) return null;
+  if (d.includes("/")) return d; // já está BR
+  const parts = d.split("-");
+  if (parts.length !== 3) return d;
+  const [yyyy, mm, dd] = parts;
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 function safeText(v) {
   return v == null || v === "" ? "—" : v;
 }
@@ -129,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
   });
 
-  // RESET GERAL com senha
+  // RESET GERAL com senha (só Wellington vai manter o botão visível)
   document
     .getElementById("btnClearHistory")
     ?.addEventListener("click", resetGeralComSenha);
@@ -138,8 +157,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 /* ================== UI / PERMISSÕES ================== */
 function aplicarPermissoes() {
   const nivel = getNivel();
+
+  // + Adicionar evento: só admin
   if (nivel !== "admin") {
     document.getElementById("btnAddEvento")?.remove();
+  }
+
+  // ✅ Limpar Histórico: só Wellington
+  if (!isWellington()) {
     document.getElementById("btnClearHistory")?.remove();
   }
 }
@@ -267,7 +292,7 @@ async function renderCards() {
     // estilos por status
     if (evt.cancelado) card.classList.add("cancelado");
 
-    // ✅ oficial / não-oficial (sem misturar com o vermelho)
+    // ✅ oficial / não-oficial
     if (evt.oficial) card.classList.add("oficial");
     if (evt.nao_oficial) card.classList.add("nao-oficial");
 
@@ -293,7 +318,11 @@ async function renderCards() {
         ? `<div style="margin-top:6px;font-weight:700;color:#111;background:#ffd54f;padding:6px;border-radius:6px;display:inline-block;">NÃO-OFICIAL</div>`
         : "";
 
-    const pl = placarMap?.[evt.id] || { aprovados: 0, emAprovacao: 0, total: 0 };
+    const pl = placarMap?.[evt.id] || {
+      aprovados: 0,
+      emAprovacao: 0,
+      total: 0,
+    };
     const placarHtml = `
       <div class="placar-projetos">
         <span class="badge aprovado">APROVADOS: <b>${pl.aprovados}</b></span>
@@ -314,6 +343,13 @@ async function renderCards() {
               </button>`
             : ""
         }
+
+        ${
+          // ✅ EXCLUIR EVENTO: só Wellington
+          isWellington()
+            ? `<button onclick="excluirEvento(${evt.id})">🗑 Excluir</button>`
+            : ""
+        }
       </div>
     `;
 
@@ -325,9 +361,11 @@ async function renderCards() {
       ${placarHtml}
       <div class="meta">
         <div><b>Local:</b> ${safeText(evt.endereco)}</div>
-        <div><b>Período:</b> ${safeText(ymd(evt.periodo_inicio))} a ${safeText(ymd(evt.periodo_fim))}</div>
-        <div><b>Montagem:</b> ${safeText(ymd(evt.mont_inicio))} a ${safeText(ymd(evt.mont_fim))}</div>
-        <div><b>Desmontagem:</b> ${safeText(ymd(evt.desm_inicio))} a ${safeText(ymd(evt.desm_fim))}</div>
+
+        <!-- ✅ Agora exibindo em dd/mm/aaaa -->
+        <div><b>Período:</b> ${safeText(formatDateBR(evt.periodo_inicio))} a ${safeText(formatDateBR(evt.periodo_fim))}</div>
+        <div><b>Montagem:</b> ${safeText(formatDateBR(evt.mont_inicio))} a ${safeText(formatDateBR(evt.mont_fim))}</div>
+        <div><b>Desmontagem:</b> ${safeText(formatDateBR(evt.desm_inicio))} a ${safeText(formatDateBR(evt.desm_fim))}</div>
       </div>
       ${footerAdmin}
     `;
@@ -405,6 +443,7 @@ async function editarEvento(id) {
   document.getElementById("evtEndereco").value = data.endereco || "";
   document.getElementById("evtMes").value = String(data.mes || 1);
 
+  // ✅ input date precisa de YYYY-MM-DD
   document.getElementById("evtPeriodoInicio").value =
     ymd(data.periodo_inicio) || "";
   document.getElementById("evtPeriodoFim").value = ymd(data.periodo_fim) || "";
@@ -447,15 +486,16 @@ function mostrarModalConflito(conflitos, payload) {
   const modal = document.getElementById("modalConflict");
   const msgEl = document.getElementById("conflictMessage");
 
+  // ✅ também em dd/mm/aaaa
   const texto =
     `Conflito de período detectado!\n\n` +
     `Evento que você está salvando:\n` +
-    `• ${payload.nome}\n• ${safeText(ymd(payload.periodo_inicio))} a ${safeText(ymd(payload.periodo_fim))}\n\n` +
+    `• ${payload.nome}\n• ${safeText(formatDateBR(payload.periodo_inicio))} a ${safeText(formatDateBR(payload.periodo_fim))}\n\n` +
     `Conflita com:\n` +
     conflitos
       .map(
         (c) =>
-          `• [${c.id}] ${c.nome} (${safeText(ymd(c.periodo_inicio))} a ${safeText(ymd(c.periodo_fim))})`,
+          `• [${c.id}] ${c.nome} (${safeText(formatDateBR(c.periodo_inicio))} a ${safeText(formatDateBR(c.periodo_fim))})`,
       )
       .join("\n");
 
@@ -610,7 +650,9 @@ async function abrirHistoricoEvento(eventId) {
     return;
   }
 
-  const userIds = Array.from(new Set(data.map((h) => h.usuario).filter(Boolean)));
+  const userIds = Array.from(
+    new Set(data.map((h) => h.usuario).filter(Boolean)),
+  );
 
   let mapNomes = {};
   if (userIds.length) {
@@ -649,7 +691,11 @@ async function abrirHistoricoEvento(eventId) {
 
 /* ================== RESET GERAL (senha) ================== */
 async function resetGeralComSenha() {
-  if (!isAdmin()) return;
+  // ✅ trava: só Wellington
+  if (!isWellington()) {
+    alert("Apenas Wellington pode usar este botão.");
+    return;
+  }
 
   const ok = confirm(
     "ATENÇÃO: Isso vai APAGAR TUDO (eventos, projetos, históricos e PDFs referenciados no banco). Deseja continuar?",
@@ -686,7 +732,10 @@ async function resetGeralComSenha() {
         .from("project_files")
         .delete()
         .in("project_id", projectIds);
-      await window.supabaseClient.from("projects").delete().in("id", projectIds);
+      await window.supabaseClient
+        .from("projects")
+        .delete()
+        .in("id", projectIds);
     }
 
     if (eventIds.length) {
@@ -708,6 +757,69 @@ async function resetGeralComSenha() {
   } catch (e) {
     console.error(e);
     alert("Erro ao limpar tudo: " + (e?.message || "desconhecido"));
+  }
+}
+
+/* ================== EXCLUIR 1 EVENTO (só Wellington) ================== */
+async function excluirEvento(eventId) {
+  if (!isWellington()) {
+    alert("Apenas Wellington pode excluir eventos.");
+    return;
+  }
+
+  const ok = confirm(
+    "ATENÇÃO: Isso vai excluir o evento e os dados relacionados (projetos, históricos e PDFs referenciados no banco). Deseja continuar?",
+  );
+  if (!ok) return;
+
+  try {
+    await window.supabaseClient
+      .from("event_files")
+      .delete()
+      .eq("event_id", eventId);
+
+    await window.supabaseClient
+      .from("event_history")
+      .delete()
+      .eq("event_id", eventId);
+
+    const { data: projs, error: pErr } = await window.supabaseClient
+      .from("projects")
+      .select("id")
+      .eq("event_id", eventId);
+
+    if (pErr) throw pErr;
+
+    const projectIds = (projs || []).map((p) => p.id).filter(Boolean);
+
+    if (projectIds.length) {
+      await window.supabaseClient
+        .from("project_stage_history")
+        .delete()
+        .in("project_id", projectIds);
+
+      await window.supabaseClient
+        .from("project_files")
+        .delete()
+        .in("project_id", projectIds);
+
+      await window.supabaseClient
+        .from("projects")
+        .delete()
+        .in("id", projectIds);
+    }
+
+    const { error } = await window.supabaseClient
+      .from("events")
+      .delete()
+      .eq("id", eventId);
+    if (error) throw error;
+
+    alert("Evento excluído com sucesso!");
+    await renderCards();
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao excluir evento: " + (e?.message || "desconhecido"));
   }
 }
 
@@ -834,12 +946,14 @@ async function uploadPDFForEvent(eventId, fileOptional = null, opts = {}) {
   const { data: sessionData } = await window.supabaseClient.auth.getSession();
   const userId = sessionData?.session?.user?.id || null;
 
-  const { error: dbErr } = await window.supabaseClient.from("event_files").insert({
-    event_id: eventId,
-    file_path: storagePath,
-    uploaded_by: userId,
-    uploaded_at: new Date().toISOString(),
-  });
+  const { error: dbErr } = await window.supabaseClient
+    .from("event_files")
+    .insert({
+      event_id: eventId,
+      file_path: storagePath,
+      uploaded_by: userId,
+      uploaded_at: new Date().toISOString(),
+    });
 
   if (dbErr) {
     console.error(dbErr);
