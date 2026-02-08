@@ -22,6 +22,50 @@
 
 <button id="btnAddProjeto" class="btn-add">+ Adicionar Projeto</button>
 
+<!-- ✅ FILTROS (NOVO) -->
+<div id="filtrosBar" style="margin: 14px auto; max-width: 1200px; padding: 12px; border:1px solid #222; border-radius: 12px; background: rgba(0,0,0,0.25);">
+  <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+
+    <input id="filtroTexto" placeholder="Buscar projeto (nome)" 
+      style="min-width:220px; flex: 1; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;" />
+
+    <select id="filtroStatus"
+      style="min-width:180px; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;">
+      <option value="">Status (todos)</option>
+      <option value="APROVADO">APROVADO</option>
+      <option value="EM APROVAÇÃO">EM APROVAÇÃO</option>
+      <option value="CANCELADO">CANCELADO</option>
+    </select>
+
+    <select id="filtroVendedor"
+      style="min-width:170px; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;">
+      <option value="">Vendedor (todos)</option>
+    </select>
+
+    <select id="filtroVendedor2"
+      style="min-width:170px; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;">
+      <option value="">Vendedor 2 (todos)</option>
+    </select>
+
+    <select id="filtroProjetista"
+      style="min-width:170px; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;">
+      <option value="">Projetista (todos)</option>
+    </select>
+
+    <button id="btnMeusProjetos"
+      style="padding:10px 14px; border-radius:10px; border:1px solid #333; background:#1b1b1b; color:#fff; cursor:pointer;">
+      Meus projetos
+    </button>
+
+    <button id="btnLimparFiltros"
+      style="padding:10px 14px; border-radius:10px; border:1px solid #333; background:#222; color:#fff; cursor:pointer;">
+      Limpar filtros
+    </button>
+
+    <div id="filtroResumo" style="margin-left:auto; color:#ccc; font-size:13px;"></div>
+  </div>
+</div>
+
 <div class="tabela-container">
   <table>
     <thead>

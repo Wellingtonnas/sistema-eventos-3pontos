@@ -37,6 +37,7 @@
         border: none;
         background: #2c2c2c;
         color: white;
+        box-sizing: border-box;
       }
       button {
         width: 100%;
@@ -52,6 +53,12 @@
       .visualizar-btn {
         margin-top: 12px;
         background: #444;
+      }
+      .link-btn {
+        margin-top: 12px;
+        background: transparent;
+        border: 1px solid #333;
+        color: #ddd;
       }
       .erro {
         margin-top: 15px;
@@ -85,6 +92,51 @@
         pointer-events: none;
         white-space: nowrap;
       }
+
+      /* ===== Modal simples ===== */
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+      }
+      .modal.show {
+        display: flex;
+      }
+      .modal-box {
+        width: 360px;
+        max-width: 92vw;
+        background: #1c1c1c;
+        border: 1px solid #333;
+        border-radius: 10px;
+        box-shadow: 0 0 25px #000;
+        padding: 18px;
+        text-align: left;
+      }
+      .modal-box h3 {
+        margin: 0 0 10px 0;
+        color: #00d2ff;
+      }
+      .row-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .row-actions button {
+        margin-top: 0;
+      }
+      .btn-cancel {
+        background: #333;
+      }
+      .hint {
+        font-size: 12px;
+        color: #bbb;
+        margin-top: 10px;
+        line-height: 1.3;
+      }
     </style>
   </head>
   <body>
@@ -95,6 +147,7 @@
         class="logo-topo"
       />
       <h2>GESTÃO DE EVENTOS E PROJETOS</h2>
+
       <select id="tipoAcesso">
         <option value="admin">Admin</option>
         <option value="producao">Produção</option>
@@ -107,15 +160,47 @@
       />
       <input id="loginPass" type="password" placeholder="Senha" />
 
-      <button id="btnEntrar">Entrar</button>
+      <button id="btnEntrar" type="button">Entrar</button>
 
-      <!-- Visualizador com login (mais seguro) -->
-      <button class="visualizar-btn" id="btnVisual">
+      <button class="visualizar-btn" id="btnVisual" type="button">
         Entrar como Visualizador
+      </button>
+
+      <!-- ✅ NOVO: Trocar senha (antes de entrar no sistema) -->
+      <button class="link-btn" id="btnTrocarSenha" type="button">
+        Trocar senha
       </button>
 
       <div class="erro" id="msgErro"></div>
       <div class="ok" id="msgOk"></div>
+    </div>
+
+    <!-- ✅ Modal de troca de senha -->
+    <div class="modal" id="modalSenha">
+      <div class="modal-box">
+        <h3>Trocar senha</h3>
+
+        <input id="csEmail" type="email" placeholder="Email" />
+        <input id="csSenhaAtual" type="password" placeholder="Senha atual" />
+        <input id="csNovaSenha" type="password" placeholder="Nova senha" />
+        <input
+          id="csConfirma"
+          type="password"
+          placeholder="Confirmar nova senha"
+        />
+
+        <div class="row-actions">
+          <button class="btn-cancel" id="btnCancelarTroca" type="button">
+            Cancelar
+          </button>
+          <button id="btnConfirmarTroca" type="button">Confirmar</button>
+        </div>
+
+        <div class="hint">
+          Dica: use uma senha com pelo menos 8 caracteres (misture letras e
+          números).
+        </div>
+      </div>
     </div>
 
     <!-- Supabase -->
@@ -165,27 +250,22 @@
           if (perfilErr) throw new Error("Profiles: " + perfilErr.message);
           if (!perfil) throw new Error("Profiles: perfil não encontrado.");
 
-          // 3) Validar "tipo de acesso" vs role
-          // - superadmin entra como admin
+          // 3) Validar tipo de acesso vs role
           const roleNormalizada =
             perfil.role === "superadmin" ? "admin" : perfil.role;
 
-          // Se o usuário escolheu "Admin" mas o role dele é "producao" ou "visual", bloqueia
           if (tipoEscolhido && roleNormalizada !== tipoEscolhido) {
-            // desfaz sessão pra não deixar logado errado
             await window.supabaseClient.auth.signOut();
             throw new Error(
               `Permissão: seu perfil é "${roleNormalizada}" e você selecionou "${tipoEscolhido}".`,
             );
           }
 
-          // 4) Cache pro seu frontend (compatível)
-          localStorage.setItem("nivelAcesso", roleNormalizada); // admin | producao | visual
+          // 4) Cache pro frontend
+          localStorage.setItem("nivelAcesso", roleNormalizada);
           localStorage.setItem("usuarioLogado", perfil.nome);
 
           showOk("Login OK. Redirecionando...");
-
-          // 5) Ir pra tela do cronograma
           window.location.href = "cronograma.html";
         } catch (e) {
           console.error("ERRO LOGIN:", e);
@@ -193,11 +273,31 @@
         }
       }
 
+      // ========= Troca de senha ANTES de entrar =========
+      async function trocarSenhaAntesDeEntrar(email, senhaAtual, novaSenha) {
+        // 1) autentica com a senha atual
+        const { error: e1 } =
+          await window.supabaseClient.auth.signInWithPassword({
+            email,
+            password: senhaAtual,
+          });
+        if (e1) throw new Error("Senha atual incorreta.");
+
+        // 2) troca senha
+        const { error: e2 } = await window.supabaseClient.auth.updateUser({
+          password: novaSenha,
+        });
+        if (e2) throw new Error("Erro ao trocar senha: " + e2.message);
+
+        // 3) desloga (pra pessoa entrar de novo com a nova senha)
+        await window.supabaseClient.auth.signOut();
+      }
+
       // ========= Eventos =========
       document
         .getElementById("btnEntrar")
         .addEventListener("click", async () => {
-          const tipo = document.getElementById("tipoAcesso").value; // admin | producao
+          const tipo = document.getElementById("tipoAcesso").value;
           const email = document.getElementById("loginUser").value.trim();
           const pass = document.getElementById("loginPass").value;
 
@@ -210,7 +310,7 @@
         if (e.key === "Enter") document.getElementById("btnEntrar").click();
       });
 
-      // Visualizador: login com conta criada (recomendado)
+      // Visualizador
       document
         .getElementById("btnVisual")
         .addEventListener("click", async () => {
@@ -218,10 +318,66 @@
           const pass = prompt("Senha do Visualizador:");
           if (!pass) return;
 
-          // aqui não valida tipoEscolhido, força visual
           await fazerLogin(email, pass, "visual");
         });
+
+      // ===== Modal troca senha =====
+      const modalSenha = document.getElementById("modalSenha");
+      const btnTrocarSenha = document.getElementById("btnTrocarSenha");
+      const btnCancelarTroca = document.getElementById("btnCancelarTroca");
+      const btnConfirmarTroca = document.getElementById("btnConfirmarTroca");
+
+      function abrirModalSenha() {
+        // pré-preenche com o email digitado no login (se tiver)
+        document.getElementById("csEmail").value =
+          document.getElementById("loginUser").value.trim() || "";
+        document.getElementById("csSenhaAtual").value = "";
+        document.getElementById("csNovaSenha").value = "";
+        document.getElementById("csConfirma").value = "";
+        modalSenha.classList.add("show");
+      }
+
+      function fecharModalSenha() {
+        modalSenha.classList.remove("show");
+      }
+
+      btnTrocarSenha.addEventListener("click", abrirModalSenha);
+      btnCancelarTroca.addEventListener("click", fecharModalSenha);
+
+      btnConfirmarTroca.addEventListener("click", async () => {
+        msgErro.style.display = "none";
+        msgOk.style.display = "none";
+
+        const email = document.getElementById("csEmail").value.trim();
+        const senhaAtual = document.getElementById("csSenhaAtual").value;
+        const novaSenha = document.getElementById("csNovaSenha").value;
+        const confirma = document.getElementById("csConfirma").value;
+
+        if (!email || !senhaAtual || !novaSenha || !confirma)
+          return showError("Preencha todos os campos da troca de senha.");
+
+        if (novaSenha.length < 8)
+          return showError("A nova senha deve ter pelo menos 8 caracteres.");
+
+        if (novaSenha !== confirma)
+          return showError("A confirmação não confere com a nova senha.");
+
+        try {
+          await trocarSenhaAntesDeEntrar(email, senhaAtual, novaSenha);
+          fecharModalSenha();
+          showOk("Senha alterada! Agora entre com a nova senha.");
+        } catch (e) {
+          console.error("TROCA SENHA:", e);
+          showError(e.message || "Não foi possível trocar a senha.");
+        }
+      });
+
+      // clicar fora fecha
+      modalSenha.addEventListener("click", (e) => {
+        if (e.target === modalSenha) fecharModalSenha();
+      });
     </script>
+
     <footer class="dev-footer">
       3P Control — desenvolvido por Wellington Carneiro
     </footer>

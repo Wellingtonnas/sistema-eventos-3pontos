@@ -58,7 +58,7 @@ function fmtBRDateTime(iso) {
   return new Date(iso).toLocaleString("pt-BR");
 }
 
-/** ✅ YYYY-MM-DD -> dd/mm/aaaa (sem Date(), evita -1 dia por fuso) */
+/** ✅ Formata YYYY-MM-DD -> dd/mm/aaaa (SEM Date(), evita -1 dia) */
 function fmtBRDate(isoOrYmd) {
   const s = ymd(isoOrYmd);
   if (!s) return null;
@@ -125,12 +125,23 @@ function podeEditarCampo(campo) {
   const nivel = getNivel();
 
   if (nivel === "admin") {
-    // ✅ vendedor2 incluído
-    return ["nome_projeto", "vendedor", "vendedor2", "projetista", "status"].includes(campo);
+    return [
+      "nome_projeto",
+      "vendedor",
+      "vendedor2",
+      "projetista",
+      "status",
+    ].includes(campo);
   }
 
   if (nivel === "producao") {
-    return ["operacional", "impressao", "cortes", "eletrica", "serralharia"].includes(campo);
+    return [
+      "operacional",
+      "impressao",
+      "cortes",
+      "eletrica",
+      "serralharia",
+    ].includes(campo);
   }
 
   return false;
@@ -140,6 +151,7 @@ function podeEditarCampo(campo) {
 let currentProjects = [];
 let lastStageTimeByProject = {};
 let hasPdfByProject = {};
+let filtroMeusProjetosAtivo = false;
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
@@ -157,22 +169,80 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("btnAddProjeto")?.remove();
   }
 
+  // ✅ monta selects dos filtros (se existirem)
+  setupFiltrosUI();
+
   await carregarResumoEvento(eventId);
   await renderProjetos(eventId);
-
-  // ✅ filtros (se existirem no HTML) - atualiza na hora
-  ["filtroTexto", "filtroStatus", "filtroVendedor", "filtroVendedor2"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => renderProjetos(getEventIdFromURL()));
-    el.addEventListener("change", () => renderProjetos(getEventIdFromURL()));
-  });
 
   document.getElementById("btnAddProjeto")?.addEventListener("click", () => {
     if (!isAdmin()) return alert("Somente ADMIN pode adicionar projetos.");
     document.getElementById("modal")?.classList.remove("hidden");
   });
 });
+
+/* ================== FILTROS UI ================== */
+function setupFiltrosUI() {
+  // se não existir o container de filtros, só não faz nada
+  const elTxt = document.getElementById("filtroTexto");
+  const elStatus = document.getElementById("filtroStatus");
+  const elVend1 = document.getElementById("filtroVendedor");
+  const elVend2 = document.getElementById("filtroVendedor2");
+  const elProj = document.getElementById("filtroProjetista");
+  const btnLimpar = document.getElementById("btnLimparFiltros");
+  const btnMeus = document.getElementById("btnMeusProjetos");
+
+  // Preenche selects (se existirem)
+  if (elVend1) preencherSelect(elVend1, "Vendedor (todos)", vendedores);
+  if (elVend2) preencherSelect(elVend2, "Vendedor 2 (todos)", vendedores);
+  if (elProj) preencherSelect(elProj, "Projetista (todos)", projetistas);
+
+  // listeners
+  [elTxt, elStatus, elVend1, elVend2, elProj].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("input", () => renderProjetos(getEventIdFromURL()));
+    el.addEventListener("change", () => renderProjetos(getEventIdFromURL()));
+  });
+
+  if (btnLimpar) {
+    btnLimpar.addEventListener("click", () => {
+      if (elTxt) elTxt.value = "";
+      if (elStatus) elStatus.value = "";
+      if (elVend1) elVend1.value = "";
+      if (elVend2) elVend2.value = "";
+      if (elProj) elProj.value = "";
+      filtroMeusProjetosAtivo = false;
+      atualizarBotaoMeus(btnMeus);
+      renderProjetos(getEventIdFromURL());
+    });
+  }
+
+  if (btnMeus) {
+    atualizarBotaoMeus(btnMeus);
+    btnMeus.addEventListener("click", () => {
+      filtroMeusProjetosAtivo = !filtroMeusProjetosAtivo;
+      atualizarBotaoMeus(btnMeus);
+      renderProjetos(getEventIdFromURL());
+    });
+  }
+}
+
+function atualizarBotaoMeus(btn) {
+  if (!btn) return;
+  btn.style.borderColor = filtroMeusProjetosAtivo ? "#00c2ff" : "#333";
+  btn.style.color = filtroMeusProjetosAtivo ? "#00c2ff" : "#fff";
+  btn.textContent = filtroMeusProjetosAtivo
+    ? "Meus projetos: ON"
+    : "Meus projetos";
+}
+
+function preencherSelect(selectEl, placeholder, itens) {
+  selectEl.innerHTML =
+    `<option value="">${escapeHtml(placeholder)}</option>` +
+    (itens || [])
+      .map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`)
+      .join("");
+}
 
 /* ================== RESUMO EVENTO ================== */
 async function carregarResumoEvento(eventId) {
@@ -191,7 +261,7 @@ async function carregarResumoEvento(eventId) {
   document.getElementById("evNome").innerText = safeText(data?.nome);
   document.getElementById("evEndereco").innerText = safeText(data?.endereco);
 
-  // ✅ aqui é só data, SEM Date() (evita -1 dia por fuso)
+  // ✅ agora SEM Date(): evita mudar 1 dia por fuso
   const pi = safeText(fmtBRDate(data?.periodo_inicio));
   const pf = safeText(fmtBRDate(data?.periodo_fim));
   document.getElementById("evPeriodo").innerText = `${pi} a ${pf}`;
@@ -215,7 +285,7 @@ async function adicionarProjeto() {
     event_id: eventId,
     nome_projeto: nome,
     vendedor: null,
-    vendedor2: null, // ✅ novo campo
+    vendedor2: null,
     projetista: null,
     status: null,
     operacional: null,
@@ -225,7 +295,9 @@ async function adicionarProjeto() {
     serralharia: null,
   };
 
-  const { error } = await window.supabaseClient.from("projects").insert(payload);
+  const { error } = await window.supabaseClient
+    .from("projects")
+    .insert(payload);
 
   if (error) {
     console.error(error);
@@ -257,7 +329,7 @@ async function renderProjetos(eventId) {
 
   currentProjects = data || [];
 
-  // ✅ aplica filtros (se existirem no HTML) - para todos
+  // ✅ aplica filtros (se existirem no HTML)
   const fTxt = (document.getElementById("filtroTexto")?.value || "")
     .trim()
     .toUpperCase();
@@ -268,6 +340,9 @@ async function renderProjetos(eventId) {
     .trim()
     .toUpperCase();
   const fVend2 = (document.getElementById("filtroVendedor2")?.value || "")
+    .trim()
+    .toUpperCase();
+  const fProj = (document.getElementById("filtroProjetista")?.value || "")
     .trim()
     .toUpperCase();
 
@@ -293,14 +368,36 @@ async function renderProjetos(eventId) {
       (p) => (p.vendedor2 || "").toString().trim().toUpperCase() === fVend2,
     );
   }
+  if (fProj) {
+    lista = lista.filter(
+      (p) => (p.projetista || "").toString().trim().toUpperCase() === fProj,
+    );
+  }
+
+  // ✅ Meus projetos: filtra se o nome do usuário logado estiver em vendedor, vendedor2 ou projetista
+  if (filtroMeusProjetosAtivo) {
+    const me = (getUsuario() || "").toString().trim().toUpperCase();
+    lista = lista.filter((p) => {
+      const v1 = (p.vendedor || "").toString().trim().toUpperCase();
+      const v2 = (p.vendedor2 || "").toString().trim().toUpperCase();
+      const pr = (p.projetista || "").toString().trim().toUpperCase();
+      return v1 === me || v2 === me || pr === me;
+    });
+  }
+
+  // resumo
+  const resumoEl = document.getElementById("filtroResumo");
+  if (resumoEl)
+    resumoEl.textContent = `${lista.length} / ${currentProjects.length} projetos`;
 
   if (!lista.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="12" style="color:#aaa;padding:14px;">Nenhum projeto cadastrado.</td>`;
+    tr.innerHTML = `<td colspan="12" style="color:#aaa;padding:14px;">Nenhum projeto encontrado.</td>`;
     tbody.appendChild(tr);
     return;
   }
 
+  // ✅ histórico/pdf baseado na lista filtrada
   const projectIds = lista.map((p) => p.id);
 
   await carregarUltimasHoras(projectIds);
